@@ -1,0 +1,77 @@
+name: Weekly Codebase Audit
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: 'Max issues to create'
+        required: false
+        default: '3'
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout auditor
+        uses: actions/checkout@v4
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.0/gitleaks_8.21.0_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks 2>/dev/null || echo "gitleaks install skipped"
+
+      - name: Checkout all CodingProjects repos
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/CodingProjects
+          cd ~/CodingProjects
+          repos="LLM-API-Key-Proxy llm-provider-manager llm-speedrun task-board vps-gh-agent-loop llm-leaderboard-aggregate free-llm-benchmarking"
+          for repo in $repos; do
+            gh repo clone ons96/$repo "$repo" -- --depth 1 2>/dev/null || echo "skip $repo"
+          done
+
+      - name: Snapshot
+        run: |
+          mkdir -p artifacts
+          bash scripts/snapshot.sh --out artifacts/snap-$(date -u +%Y%m%d).json --root ~/CodingProjects
+
+      - name: Download last snapshot
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
+        run: |
+          gh run download --repo ${{ github.repository }} --name snapshot-artifact --dir artifacts/prev 2>/dev/null || echo "no previous snapshot (baseline run)"
+
+      - name: Diff + Analyze + Emit
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
+          GATEWAY_URL: ${{ secrets.GATEWAY_URL }}
+          VPS_GATEWAY_API_KEY: ${{ secrets.VPS_GATEWAY_API_KEY }}
+          AUDITOR_MODEL: coding-fast
+          CODEBASE_ROOT: ~/CodingProjects
+          MAX_ISSUES: ${{ github.event.inputs.max_issues || '3' }}
+        run: |
+          LATEST=$(ls -t artifacts/snap-*.json | head -1)
+          PREV=$(ls artifacts/prev/snap-*.json 2>/dev/null | head -1)
+          if [ -z "$PREV" ]; then
+            echo "No previous snapshot - baseline run, skipping analysis"
+            exit 0
+          fi
+          python3 scripts/diff.py "$PREV" "$LATEST" --out artifacts/diff.json
+          python3 scripts/analyze.py artifacts/diff.json --out artifacts/proposals.json --max "$MAX_ISSUES"
+          cat artifacts/proposals.json
+          python3 scripts/emit_issues.py artifacts/proposals.json --max "$MAX_ISSUES"
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-artifact
+          path: artifacts/snap-*.json
+          retention-days: 14
