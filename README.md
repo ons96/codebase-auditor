@@ -22,7 +22,7 @@ python3 scripts/diff.py /tmp/snap-old.json /tmp/snap-new.json --out /tmp/diff.js
 
 # 3. Analyze (needs gateway env vars)
 export GATEWAY_URL=http://localhost:8000/v1
-export VPS_GATEWAY_API_KEY=...
+export GATEWAY_API_KEY=...
 python3 scripts/analyze.py /tmp/diff.json --out /tmp/proposals.json --max 5
 
 # 4. Emit issues (dry-run first)
@@ -36,7 +36,7 @@ python3 scripts/emit_issues.py /tmp/proposals.json --max 3
 |-----|---------|---------|
 | `CODEBASE_ROOT` | `$HOME/CodingProjects` | Root dir to scan for repos |
 | `GATEWAY_URL` | `http://localhost:8000/v1` | VPS gateway endpoint |
-| `VPS_GATEWAY_API_KEY` | (required) | Gateway auth key |
+| `GATEWAY_API_KEY` | (required) | Gateway auth key |
 | `AUDITOR_MODEL` | `coding-fast` | Gateway virtual model for analysis |
 
 ## Drip-not-flood guards

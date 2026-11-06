@@ -11,7 +11,7 @@ ponytail: stdlib urllib + json only, no openai SDK dependency.
 import json, sys, os, argparse, urllib.request, urllib.error
 
 GATEWAY_URL = os.environ.get('GATEWAY_URL', 'http://localhost:8000/v1')
-GATEWAY_KEY = os.environ.get('VPS_GATEWAY_API_KEY', os.environ.get('GATEWAY_API_KEY', ''))
+GATEWAY_KEY = os.environ.get('GATEWAY_API_KEY') or os.environ.get('VPS_GATEWAY_API_KEY', '')
 MODEL = os.environ.get('AUDITOR_MODEL', 'coding-fast')
 
 SYSTEM = """You are a codebase auditor. Given a diff of repository states (HEAD moves, file count changes, dependency additions, open issue counts, gitleaks findings), propose 3-5 concrete improvement issues for the task board.
