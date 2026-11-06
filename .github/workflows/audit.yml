@@ -53,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
           GATEWAY_URL: ${{ secrets.GATEWAY_URL }}
-          VPS_GATEWAY_API_KEY: ${{ secrets.VPS_GATEWAY_API_KEY }}
+          GATEWAY_API_KEY: ${{ secrets.GATEWAY_API_KEY }}
           AUDITOR_MODEL: coding-fast
           CODEBASE_ROOT: ~/CodingProjects
           MAX_ISSUES: ${{ github.event.inputs.max_issues || '3' }}
