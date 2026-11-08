@@ -24,15 +24,15 @@ def get_existing_titles(board):
     try:
         r = subprocess.run(
             ['gh', 'issue', 'list', '--repo', board, '--state', 'open',
-             '--limit', '200', '--json', 'number', 'title'],
+             '--limit', '200', '--json', 'number,title'],
             capture_output=True, text=True, timeout=30,
         )
         if r.returncode != 0:
-            return set()
+            raise RuntimeError('could not load existing issues; refusing to create duplicates')
         issues = json.loads(r.stdout)
         return {i['title'].lower().strip() for i in issues}
-    except Exception:
-        return set()
+    except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError) as e:
+        raise RuntimeError('could not load existing issues; refusing to create duplicates') from e
 
 def title_matches_existing(title, existing):
     """Check if a proposal title is too similar to an existing one."""
@@ -54,6 +54,8 @@ def create_issue(board, proposal, dry_run=False):
     """Create a single issue via gh CLI. Returns (success, url_or_error)."""
     title = proposal['title']
     priority = proposal.get('priority', 'P3')
+    if priority not in ('P3', 'P4'):
+        priority = 'P3'
     repo = proposal.get('repo', '')
     body = proposal.get('body', '')
     rationale = proposal.get('rationale', '')
@@ -76,9 +78,8 @@ def create_issue(board, proposal, dry_run=False):
     sections.append('- Auto-audit issue (priority capped at P3)')
     full_body = '\n'.join(sections)
 
-    labels = [f'priority:{priority}', 'status:new', 'tag:auto-audit']
-    if repo:
-        labels.append(f'project:{repo}')
+    labels = [f'priority:{priority}', 'status:new', 'tag:auto-audit',
+              'tag:cross-device', f'project:{repo or "general"}']
 
     if dry_run:
         return True, f'[DRY-RUN] would create: {title} (labels: {",".join(labels)})'
@@ -114,7 +115,11 @@ def main():
         print('emit_issues: no proposals to create', file=sys.stderr)
         return
 
-    existing = get_existing_titles(args.board) if not args.dry_run else set()
+    try:
+        existing = get_existing_titles(args.board) if not args.dry_run else set()
+    except RuntimeError as e:
+        print(f'emit_issues: {e}', file=sys.stderr)
+        return 1
     print(f'emit_issues: {len(existing)} existing open titles loaded for dedup', file=sys.stderr)
 
     created = 0
@@ -152,4 +157,4 @@ def main():
     print(f'emit_issues: {created} created, {skipped_dup} dup, {skipped_vague} vague, {skipped_cap} capped', file=sys.stderr)
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
