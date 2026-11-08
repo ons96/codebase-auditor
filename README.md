@@ -45,7 +45,15 @@ python3 scripts/emit_issues.py /tmp/proposals.json --max 3
 - Priority capped at P3 (never P0/P1/P2 from auto-audit)
 - Vague title patterns rejected ("add more tests", "improve code quality", etc.)
 - Dedup by title fuzzy match (>80% word overlap = skip)
-- Labels: `status:new`, `priority:P3`, `tag:auto-audit`, `project:<repo>`
+- Labels: `status:new`, `priority:P3` (or `P4`), `tag:auto-audit`,
+  `tag:cross-device`, `project:<repo>` (defaults to `general`)
+- If existing issues cannot be read, emission stops rather than bypassing dedup.
+
+## Offline tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
 
 ## Dependencies
 
